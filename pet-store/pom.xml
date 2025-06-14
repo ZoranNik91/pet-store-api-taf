@@ -42,12 +42,12 @@
     <!-- RestAssured -->
     <dependency>
       <groupId>io.rest-assured</groupId>
-      <artifactId>rest-assured</artifactId>
-      <version>${rest-assured.version}</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>io.rest-assured</groupId>
+        <artifactId>rest-assured</artifactId>
+        <version>5.3.0</version>
+        <scope>compile</scope>
+      </dependency>
+      <dependency>
+        <groupId>io.rest-assured</groupId>
       <artifactId>json-schema-validator</artifactId>
       <version>${rest-assured.version}</version>
       <scope>test</scope>
