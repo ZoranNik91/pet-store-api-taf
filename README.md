@@ -1,1 +1,2 @@
-# pet-store-api-taf
+# Pet Online Store
+Test Automation Framework
