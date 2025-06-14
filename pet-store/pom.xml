@@ -105,10 +105,17 @@
       <artifactId>allure-cucumber7-jvm</artifactId>
       <version>${allure.version}</version>
       <scope>test</scope>
-    </dependency>
-  </dependencies>
-
-  <build>
+      </dependency>
+  
+      <dependency>
+        <groupId>org.projectlombok</groupId>
+        <artifactId>lombok</artifactId>
+        <version>1.18.30</version> <!-- Use the latest version -->
+        <scope>provided</scope>
+      </dependency>
+    </dependencies>
+  
+    <build>
     <plugins>
       <plugin>
         <artifactId>maven-compiler-plugin</artifactId>
