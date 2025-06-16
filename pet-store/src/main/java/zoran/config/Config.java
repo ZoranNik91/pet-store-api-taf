@@ -1,16 +1,13 @@
 package zoran.config;
 
-import lombok.Getter;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
 
-@Getter
 public class Config {
-    private String baseUrl;
-    private String apiKey;
-    
+    private final String baseUrl;
+    private final String apiKey;
+
     public Config() {
         Properties prop = new Properties();
         try (InputStream input = getClass().getClassLoader().getResourceAsStream("config.properties")) {
@@ -18,8 +15,10 @@ public class Config {
             this.baseUrl = prop.getProperty("api.base.url");
             this.apiKey = prop.getProperty("api.key");
         } catch (IOException ex) {
-            ex.printStackTrace();
-            throw new RuntimeException("Failed to load configuration");
+            throw new RuntimeException("Failed to load configuration", ex);
         }
     }
+
+    public String getBaseUrl() { return baseUrl; }
+    public String getApiKey() { return apiKey; }
 }

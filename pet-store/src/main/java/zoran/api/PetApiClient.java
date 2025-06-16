@@ -8,12 +8,12 @@ import io.restassured.response.Response;
 
 public class PetApiClient {
     private final Config config;
-    
+
     public PetApiClient() {
         this.config = new Config();
         RestAssured.baseURI = config.getBaseUrl();
     }
-    
+
     public Response addPet(Pet pet) {
         return RestAssured.given()
                 .contentType(ContentType.JSON)
@@ -21,14 +21,14 @@ public class PetApiClient {
                 .body(pet)
                 .post("/pet");
     }
-    
+
     public Response getPetById(Long petId) {
         return RestAssured.given()
                 .header("api_key", config.getApiKey())
                 .pathParam("petId", petId)
                 .get("/pet/{petId}");
     }
-    
+
     public Response updatePet(Pet pet) {
         return RestAssured.given()
                 .contentType(ContentType.JSON)

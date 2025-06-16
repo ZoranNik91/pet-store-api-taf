@@ -14,9 +14,9 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven.compiler.source>21</maven.compiler.source>
     <maven.compiler.target>21</maven.compiler.target>
-    <!-- Dependency versions -->
     <rest-assured.version>5.3.2</rest-assured.version>
     <cucumber.version>7.15.0</cucumber.version>
+    <selenium.version>3.141.59</selenium.version>
     <swagger-core.version>2.2.19</swagger-core.version>
     <swagger-parser.version>2.1.16</swagger-parser.version>
     <allure.version>2.24.0</allure.version>
@@ -54,6 +54,7 @@
     </dependency>
 
     <!-- Cucumber -->
+    <!-- Existing Cucumber dependencies -->
     <dependency>
       <groupId>io.cucumber</groupId>
       <artifactId>cucumber-java</artifactId>
@@ -64,6 +65,40 @@
       <groupId>io.cucumber</groupId>
       <artifactId>cucumber-junit-platform-engine</artifactId>
       <version>${cucumber.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.platform</groupId>
+      <artifactId>junit-platform-suite</artifactId>
+      <version>1.10.2</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.platform</groupId>
+      <artifactId>junit-platform-suite-engine</artifactId>
+      <version>1.10.2</version>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- Selenium WebDriver -->
+    <dependency>
+      <groupId>org.seleniumhq.selenium</groupId>
+      <artifactId>selenium-java</artifactId>
+      <version>${selenium.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- Selenium Support Libraries (included in selenium-java) -->
+    <dependency>
+      <groupId>org.seleniumhq.selenium</groupId>
+      <artifactId>selenium-api</artifactId>
+      <version>${selenium.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.seleniumhq.selenium</groupId>
+      <artifactId>selenium-chrome-driver</artifactId>
+      <version>${selenium.version}</version>
       <scope>test</scope>
     </dependency>
 
@@ -85,13 +120,6 @@
       <version>${swagger-core.version}</version>
     </dependency>
 
-    <!-- Swagger Parser -->
-    <dependency>
-      <groupId>io.swagger.parser.v3</groupId>
-      <artifactId>swagger-parser</artifactId>
-      <version>${swagger-parser.version}</version>
-    </dependency>
-
     <!-- Jakarta Validation (required for Swagger) -->
     <dependency>
       <groupId>jakarta.validation</groupId>
@@ -105,15 +133,35 @@
       <artifactId>allure-cucumber7-jvm</artifactId>
       <version>${allure.version}</version>
       <scope>test</scope>
-      </dependency>
-  
-      <dependency>
-        <groupId>org.projectlombok</groupId>
-        <artifactId>lombok</artifactId>
-        <version>1.18.30</version> <!-- Use the latest version -->
-        <scope>provided</scope>
-      </dependency>
-    </dependencies>
+    </dependency>
+    <!-- JavaFaker -->
+    <dependency>
+      <groupId>com.github.javafaker</groupId>
+      <artifactId>javafaker</artifactId>
+      <version>1.0.2</version>
+    </dependency>
+
+    <!-- Lombok (for @Data and @Builder) -->
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <version>1.18.30</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.junit.platform</groupId>
+      <artifactId>junit-platform-engine</artifactId>
+      <version>1.10.2</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <version>4.13.2</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
   
     <build>
     <plugins>
@@ -127,14 +175,18 @@
       </plugin>
 
       <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
-        <version>2.22.1</version>
+        <version>3.1.2</version>
         <configuration>
           <testFailureIgnore>false</testFailureIgnore>
           <includes>
             <include>**/*Test*.java</include>
             <include>**/*Runner*.java</include>
           </includes>
+          <systemPropertyVariables>
+            <cucumber.junit-platform.naming-strategy>long</cucumber.junit-platform.naming-strategy>
+          </systemPropertyVariables>
         </configuration>
       </plugin>
 

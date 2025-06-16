@@ -1,9 +1,11 @@
-zoran/App.class
+zoran/utils/PetGenerator.class
 zoran/models/Tag.class
 zoran/models/Pet.class
+zoran/models/Pet$Tag$TagBuilder.class
 zoran/api/PetApiClient.class
-zoran/models/Category$CategoryBuilder.class
 zoran/models/Pet$PetBuilder.class
-zoran/models/Tag$TagBuilder.class
 zoran/config/Config.class
+zoran/models/Pet$Category$CategoryBuilder.class
 zoran/models/Category.class
+zoran/models/Pet$Tag.class
+zoran/models/Pet$Category.class

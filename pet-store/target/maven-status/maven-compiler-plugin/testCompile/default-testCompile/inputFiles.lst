@@ -1,1 +1,6 @@
-/Users/admin/VS Code/pet-store-api-taf/pet-store/src/test/java/zoran/AppTest.java
+/Users/admin/IdeaProjects/pet-store-api-taf/pet-store/src/test/java/zoran/listeners/CustomAllureListener.java
+/Users/admin/IdeaProjects/pet-store-api-taf/pet-store/src/test/java/zoran/FunctionTestRunner.java
+/Users/admin/IdeaProjects/pet-store-api-taf/pet-store/src/test/java/zoran/base/BaseApiTest.java
+/Users/admin/IdeaProjects/pet-store-api-taf/pet-store/src/test/java/zoran/RunCucumber.java
+/Users/admin/IdeaProjects/pet-store-api-taf/pet-store/src/test/java/zoran/PetApiTests.java
+/Users/admin/IdeaProjects/pet-store-api-taf/pet-store/src/test/java/zoran/steps/PetManagementAPI.java
