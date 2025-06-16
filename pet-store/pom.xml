@@ -22,6 +22,9 @@
     <allure.version>2.24.0</allure.version>
     <junit-jupiter.version>5.10.0</junit-jupiter.version>
     <jakarta-validation.version>3.0.2</jakarta-validation.version>
+    <lombok.version>1.18.30</lombok.version>
+    <jackson-databind.version>2.15.2</jackson-databind.version>
+    <javafaker.version>1.0.2</javafaker.version>
   </properties>
 
   <dependencies>
@@ -38,19 +41,92 @@
       <version>${junit-jupiter.version}</version>
       <scope>test</scope>
     </dependency>
+    
+    <!-- Lombok -->
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <version>${lombok.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    
+    <!-- Jackson -->
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+      <version>${jackson-databind.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.fasterxml.jackson.datatype</groupId>
+      <artifactId>jackson-datatype-jsr310</artifactId>
+      <version>${jackson-databind.version}</version>
+    </dependency>
+    
+    <!-- Java Faker - Used in main source code -->
+    <dependency>
+      <groupId>com.github.javafaker</groupId>
+      <artifactId>javafaker</artifactId>
+      <version>${javafaker.version}</version>
+      <scope>compile</scope>
+    </dependency>
+    
+    <!-- Cucumber Dependencies -->
+    <dependency>
+      <groupId>io.cucumber</groupId>
+      <artifactId>cucumber-java</artifactId>
+      <version>${cucumber.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.cucumber</groupId>
+      <artifactId>cucumber-junit-platform-engine</artifactId>
+      <version>${cucumber.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.cucumber</groupId>
+      <artifactId>cucumber-junit</artifactId>
+      <version>${cucumber.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.platform</groupId>
+      <artifactId>junit-platform-suite</artifactId>
+      <version>1.10.0</version>
+      <scope>test</scope>
+    </dependency>
 
-    <!-- RestAssured -->
+    <!-- RestAssured - Main dependency with compile scope -->
     <dependency>
       <groupId>io.rest-assured</groupId>
-        <artifactId>rest-assured</artifactId>
-        <version>5.3.0</version>
-        <scope>compile</scope>
-      </dependency>
-      <dependency>
-        <groupId>io.rest-assured</groupId>
+      <artifactId>rest-assured</artifactId>
+      <version>${rest-assured.version}</version>
+      <scope>compile</scope>
+    </dependency>
+    <!-- RestAssured - Additional modules -->
+    <dependency>
+      <groupId>io.rest-assured</groupId>
       <artifactId>json-schema-validator</artifactId>
       <version>${rest-assured.version}</version>
-      <scope>test</scope>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.rest-assured</groupId>
+      <artifactId>json-path</artifactId>
+      <version>${rest-assured.version}</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.rest-assured</groupId>
+      <artifactId>xml-path</artifactId>
+      <version>${rest-assured.version}</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.rest-assured</groupId>
+      <artifactId>rest-assured-common</artifactId>
+      <version>${rest-assured.version}</version>
+      <scope>compile</scope>
     </dependency>
 
     <!-- Cucumber -->
@@ -135,19 +211,7 @@
       <scope>test</scope>
     </dependency>
     <!-- JavaFaker -->
-    <dependency>
-      <groupId>com.github.javafaker</groupId>
-      <artifactId>javafaker</artifactId>
-      <version>1.0.2</version>
-    </dependency>
 
-    <!-- Lombok (for @Data and @Builder) -->
-    <dependency>
-      <groupId>org.projectlombok</groupId>
-      <artifactId>lombok</artifactId>
-      <version>1.18.30</version>
-      <scope>provided</scope>
-    </dependency>
 
     <dependency>
       <groupId>org.junit.platform</groupId>

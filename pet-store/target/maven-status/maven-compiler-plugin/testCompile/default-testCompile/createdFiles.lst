@@ -1,6 +1,8 @@
 zoran/base/BaseApiTest.class
 zoran/FunctionTestRunner.class
+zoran/utils/TestUtils.class
 zoran/RunCucumber.class
-zoran/steps/PetManagementAPI.class
+zoran/utils/PetGenerator.class
+zoran/steps/StoreManagementAPI.class
 zoran/listeners/CustomAllureListener.class
-zoran/PetApiTests.class
+zoran/runner/TestRunner.class
