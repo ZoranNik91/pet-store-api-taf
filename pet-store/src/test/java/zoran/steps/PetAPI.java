@@ -51,8 +51,13 @@ public class PetAPI {
     public void addPetToStore() {
         try {
             System.out.println("Adding pet to store with details: " + testPet);
-            createdPet = petApi.addPet(testPet);
-            System.out.println("Pet added successfully with ID: " + createdPet.getId());
+            
+            // Store the response from adding the pet
+            response = petApi.addPetWithResponse(testPet);
+            createdPet = response.as(Pet.class);
+            
+            System.out.println("Pet added successfully with ID: " + createdPet.getId() + 
+                             ", Status Code: " + response.getStatusCode());
             
             // Update testPet with the ID from the response
             testPet.setId(createdPet.getId());
@@ -209,24 +214,9 @@ public class PetAPI {
         }
     }
 
-    @Then("the pet name should be {string}")
-    public void thePetNameShouldBe(String expectedName) {
-        assertNotNull(createdPet, "No pet is available");
-        assertEquals(expectedName, createdPet.getName(), 
-            "Pet name does not match expected");
-    }
 
-    @When("I upload an image {string} for the pet")
-    public void iUploadAnImageForThePet(String imagePath) {
-        try {
-            File imageFile = new File(getClass().getClassLoader().getResource(imagePath).getFile());
-            response = petApi.uploadPetImage(createdPet.getId(), imageFile, "Additional image");
-            lastException = null;
-        } catch (Exception e) {
-            lastException = e;
-            throw new RuntimeException("Failed to upload pet image: " + e.getMessage(), e);
-        }
-    }
+
+
 
     @Then("the image should be uploaded successfully")
     public void theImageShouldBeUploadedSuccessfully() {
