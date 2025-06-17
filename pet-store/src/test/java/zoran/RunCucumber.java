@@ -20,7 +20,7 @@ import org.junit.platform.suite.api.*;
 )
 @ConfigurationParameter(
     key = Constants.FILTER_TAGS_PROPERTY_NAME,
-    value = "@petManagement"
+    value = "@pet"
 )
 public class RunCucumber {
     // Runner class remains empty
