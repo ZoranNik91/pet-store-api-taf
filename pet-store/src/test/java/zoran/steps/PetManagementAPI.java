@@ -101,13 +101,14 @@ public class PetManagementAPI {
             System.out.println("Updating pet " + testPet.getId() + " status from " + 
                              currentStatus + " to " + newStatus);
             
-            // Update the status using the form endpoint
+            // Update the status using the form endpoint with query parameter
             Response response = RestAssured.given()
                 .baseUri("https://petstore.swagger.io/v2")
                 .contentType("application/x-www-form-urlencoded; charset=utf-8")
-                .formParam("status", newStatus)
                 .when()
-                .post("/pet/" + testPet.getId());
+                .post("/pet/" + testPet.getId() + "?status=" + newStatus);
+                
+            System.out.println("Update status response: " + response.getStatusCode() + " - " + response.getBody().asString());
             
             // Check if the update was successful (200 or 204 is acceptable)
             int statusCode = response.getStatusCode();
