@@ -94,13 +94,36 @@ mvn test -Dcucumber.filter.tags="@pet"
 ```
 
 ### Generate Test Report
+
+#### 1. Run Tests with Allure Listener
 ```bash
-mvn surefire-report:report
+mvn clean test
+```
+
+#### 2. Generate Allure Report
+```bash
+mvn allure:report
+```
+
+#### 3. Serve Allure Report Locally
+```bash
+mvn allure:serve
 ```
 
 ## Test Execution Reports
 
-Test reports are generated in the `target/surefire-reports` directory after test execution.
+Test execution reports are generated in the following directories:
+- **Allure Results**: `target/allure-results`
+- **Allure Report**: `target/site/allure-maven-plugin` (after running `allure:report`)
+
+The Allure report provides a detailed, interactive view of test results, including:
+- Test execution history
+- Step-by-step test execution
+- Screenshots and attachments
+- Environment information
+- Test categorization and grouping
+
+To view the report, run `mvn allure:serve` and open the provided URL in your browser.
 
 ## Troubleshooting
 
@@ -140,19 +163,3 @@ Test reports are generated in the `target/surefire-reports` directory after test
    - Implement proper error handling in API clients
    - Add meaningful assertions
    - Include error scenarios in test coverage
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a new Pull Request
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Contact
-
-For any questions or suggestions, please open an issue in the repository.
