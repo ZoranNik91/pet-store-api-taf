@@ -24,13 +24,13 @@ public class PetApiClient extends BaseApiClient {
     }
 
     /**
-     * Add a new pet to the store
+     * Add a new pet to the store and return the full response
      * @param pet The pet to add
-     * @return The added pet with generated ID
+     * @return The full Response object containing the server response
      */
-    public Pet addPet(Pet pet) {
+    public Response addPetWithResponse(Pet pet) {
         try {
-            System.out.println("Adding new pet to store: " + pet);
+            System.out.println("Adding new pet to store with full response: " + pet);
             
             // Log the request details
             System.out.println("Sending POST request to /pet with body: " + 
@@ -53,19 +53,22 @@ public class PetApiClient extends BaseApiClient {
                 throw new RuntimeException(errorMsg);
             }
             
-            // Extract and return the created pet
-            Pet createdPet = response.then()
-                .extract()
-                .as(Pet.class);
-                
-            System.out.println("Successfully added pet with ID: " + createdPet.getId());
-            return createdPet;
+            System.out.println("Successfully added pet with ID: " + response.jsonPath().getLong("id"));
+            return response;
             
         } catch (Exception e) {
-            String errorMsg = "Error adding pet: " + e.getMessage();
-            System.err.println(errorMsg);
-            throw new RuntimeException(errorMsg, e);
+            System.err.println("Error in addPetWithResponse: " + e.getMessage());
+            throw new RuntimeException("Failed to add pet: " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * Add a new pet to the store
+     * @param pet The pet to add
+     * @return The added pet with generated ID
+     */
+    public Pet addPet(Pet pet) {
+        return addPetWithResponse(pet).as(Pet.class);
     }
 
     /**
