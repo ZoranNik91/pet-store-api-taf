@@ -112,20 +112,52 @@ mvn allure:report
 mvn allure:serve
 ```
 
-## Test Execution Reports
+## Test Reports
 
-Test execution reports are generated in the following directories:
-- **Allure Results**: `target/allure-results`
-- **Allure Report**: `target/site/allure-maven-plugin` (after running `allure:report`)
+After running the tests, you can find the generated reports in the following locations:
 
-The Allure report provides a detailed, interactive view of test results, including:
-- Test execution history
-- Step-by-step test execution
-- Screenshots and attachments
+### Local Execution Reports
+
+1. **Cucumber Reports**:
+   - JSON format: `target/cucumber-reports/cucumber.json`
+   - HTML format: `target/cucumber-html-reports/overview-features.html`
+   - JUnit XML: `target/surefire-reports/`
+
+2. **Allure Reports** (if generated):
+   - Raw results: `target/allure-results/`
+   - Generated HTML: `target/site/allure-maven-plugin/` (after running `mvn site`)
+
+### Viewing Reports
+
+#### Cucumber HTML Report
+```bash
+# Open the HTML report in your default browser
+open target/cucumber-html-reports/overview-features.html
+```
+
+#### Allure Report
+```bash
+# Generate the report
+mvn allure:report
+
+# Serve the report locally
+mvn allure:serve
+```
+
+### CI/CD Reports (GitHub Actions)
+
+When running in GitHub Actions:
+1. Go to the "Actions" tab in your repository
+2. Click on the workflow run
+3. Look for the "Artifacts" section at the bottom
+4. Download the `test-results` or `allure-report` artifacts
+
+### Report Contents
+- Test execution history and trends
+- Step-by-step test execution details
 - Environment information
 - Test categorization and grouping
-
-To view the report, run `mvn allure:serve` and open the provided URL in your browser.
+- Screenshots and attachments (if configured)
 
 ## Troubleshooting
 
