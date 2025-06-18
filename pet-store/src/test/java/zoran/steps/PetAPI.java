@@ -98,148 +98,161 @@ public class PetAPI {
         System.out.println("\n===== ADDING PET TO STORE =====");
         System.out.println("Timestamp: " + java.time.LocalDateTime.now());
         
-        try {
-            // Log pet details being added
-            System.out.println("\n[PET DETAILS]");
-            System.out.println("  ID: " + testPet.getId());
-            System.out.println("  Name: " + testPet.getName());
-            System.out.println("  Status: " + testPet.getStatus());
-            System.out.println("  Photo URLs: " + (testPet.getPhotoUrls() != null ? 
-                String.join(", ", testPet.getPhotoUrls()) : "[none]"));
-            System.out.println("  Category: " + (testPet.getCategory() != null ? 
-                testPet.getCategory().getName() : "[none]"));
-            System.out.println("  Tags: " + (testPet.getTags() != null ? 
-                testPet.getTags().stream()
-                    .filter(Objects::nonNull)
-                    .map(tag -> tag.getName())
-                    .filter(Objects::nonNull)
-                    .collect(java.util.stream.Collectors.joining(", ")) : "[none]"));
-            
-            // Log request payload
-            ObjectMapper mapper = new ObjectMapper();
-            String requestBody = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(testPet);
-            System.out.println("\n[REQUEST PAYLOAD]\n" + requestBody);
-            
-            // Add pet to store with retry logic
-            System.out.println("\n[API CALL] Adding pet to store...");
-            Response response = null;
-            int maxApiRetries = 3;
-            int apiRetryCount = 0;
-            boolean apiCallSuccessful = false;
-            
-            while (apiRetryCount < maxApiRetries && !apiCallSuccessful) {
-                try {
-                    response = petApi.addPetWithResponse(testPet);
-                    apiCallSuccessful = true;
-                } catch (Exception e) {
-                    apiRetryCount++;
-                    System.err.println(String.format("API call failed (attempt %d/%d): %s", 
-                        apiRetryCount, maxApiRetries, e.getMessage()));
-                    if (apiRetryCount >= maxApiRetries) {
-                        throw new RuntimeException("Failed to add pet after " + maxApiRetries + " attempts", e);
+        if (testPet == null) {
+            throw new IllegalStateException("Test pet is not initialized. Please create a pet first.");
+        }
+        
+        int maxRetries = 3;
+        int retryCount = 0;
+        boolean success = false;
+        
+        while (!success && retryCount < maxRetries) {
+            try {
+                // Log pet details being added
+                System.out.println("\n[PET DETAILS]");
+                System.out.println("  ID: " + testPet.getId());
+                System.out.println("  Name: " + testPet.getName());
+                System.out.println("  Status: " + testPet.getStatus());
+                System.out.println("  Photo URLs: " + (testPet.getPhotoUrls() != null ? 
+                    String.join(", ", testPet.getPhotoUrls()) : "[none]"));
+                
+                // Add pet to store and get the response
+                System.out.println("\n[API REQUEST] Adding pet to store...");
+                Pet addedPet = petApi.addPet(testPet);
+                
+                // Verify the pet was added successfully
+                if (addedPet == null || addedPet.getId() == null) {
+                    throw new RuntimeException("Failed to add pet: No valid pet data in response");
+                }
+                
+                // Store the added pet for verification
+                response = petApi.addPetWithResponse(testPet);
+                int statusCode = response.getStatusCode();
+                System.out.println("Response Status Code: " + statusCode);
+                System.out.println("Successfully added pet with ID: " + addedPet.getId());
+                
+                if (statusCode == 200 || statusCode == 201) {
+                    // Parse the response to get the created pet
+                    createdPet = response.as(Pet.class);
+                    System.out.println("Successfully added pet with ID: " + createdPet.getId());
+                    success = true;
+                    
+                    // Verify the pet exists in the store
+                    verifyPetInStore(createdPet.getId());
+                    
+                    // Store the created pet ID for cleanup
+                    if (createdPet.getId() != null) {
+                        System.out.println("Pet successfully added with ID: " + createdPet.getId());
+                    } else {
+                        System.err.println("Warning: Created pet has null ID");
                     }
-                    Thread.sleep(2000); // Wait before retry
+                } else {
+                    String errorMsg = "Failed to add pet. Status: " + statusCode + 
+                                     "\nResponse: " + response.getBody().asString();
+                    System.err.println(errorMsg);
+                    throw new RuntimeException(errorMsg);
+                }
+                
+            } catch (Exception e) {
+                retryCount++;
+                if (retryCount >= maxRetries) {
+                    String errorMsg = "Failed after " + maxRetries + " attempts: " + e.getMessage();
+                    System.err.println(errorMsg);
+                    throw new RuntimeException(errorMsg, e);
+                }
+                
+                // Wait before retrying (exponential backoff)
+                long waitTime = (long) (Math.pow(2, retryCount) * 1000);
+                System.out.println("Retry attempt " + retryCount + " of " + maxRetries + " after " + waitTime + "ms");
+                try {
+                    Thread.sleep(waitTime);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    throw new RuntimeException("Interrupted during retry", ie);
                 }
             }
-            
-            // Log response details
-            System.out.println("\n[RESPONSE]");
-            System.out.println("Status Code: " + response.getStatusCode());
+        }
+    }
+    
+    /**
+     * Verifies that a pet exists in the store by its ID
+     * @param petId The ID of the pet to verify
+     * @throws RuntimeException if the pet cannot be found or there's an error
+     */
+    private void verifyPetInStore(long petId) {
+        System.out.println("\n[VERIFICATION] Verifying pet with ID: " + petId);
+        
+        int maxRetries = 3;
+        int retryCount = 0;
+        boolean verified = false;
+        
+        while (!verified && retryCount < maxRetries) {
+            try {
+                Pet verifiedPet = petApi.getPetById(petId);
+                
+                if (verifiedPet != null && verifiedPet.getId() != null) {
+                    System.out.println("Successfully verified pet in store:");
+                    System.out.println("  ID: " + verifiedPet.getId());
+                    System.out.println("  Name: " + verifiedPet.getName());
+                    System.out.println("  Status: " + verifiedPet.getStatus());
+                    verified = true;
+                } else {
+                    String errorMsg = "Pet with ID " + petId + " not found in store";
+                    System.err.println(errorMsg);
+                    throw new RuntimeException(errorMsg);
+                }
+            } catch (Exception e) {
+                retryCount++;
+                if (retryCount >= maxRetries) {
+                    System.err.println("Failed to verify pet after " + maxRetries + " attempts: " + e.getMessage());
+                    throw new RuntimeException("Failed to verify pet in store", e);
+                }
+                
+                // Wait before retrying (exponential backoff)
+                long waitTime = (long) (Math.pow(2, retryCount) * 1000);
+                System.out.println("Verification retry attempt " + retryCount + " of " + maxRetries + " after " + waitTime + "ms");
+                try {
+                    Thread.sleep(waitTime);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    throw new RuntimeException("Interrupted during verification retry", ie);
+                }
+            }
+        }
+    }
+    
+    @When("I parse the response and store the created pet")
+    public void parseAndStoreCreatedPet() {
+        if (response == null) {
+            throw new IllegalStateException("No response available to parse");
+        }
+        
+        createdPet = response.as(Pet.class);
+        if (createdPet == null || createdPet.getId() == null) {
             String responseBody = response.getBody().asString();
-            System.out.println("Response Body: " + responseBody);
-            
-            // Verify the response status code
-            if (response.getStatusCode() != 200) {
-                throw new RuntimeException(String.format("Unexpected status code %d. Response: %s", 
-                    response.getStatusCode(), responseBody));
-            }
-            
-            // Parse and store the created pet
-            createdPet = response.as(Pet.class);
-            if (createdPet == null || createdPet.getId() == null) {
-                throw new RuntimeException("Failed to parse created pet from response: " + responseBody);
-            }
-            
-            System.out.println("\n[PET CREATED] ID: " + createdPet.getId());
-            
-            // Verify the pet exists in the system with retry logic
-            System.out.println("\n[VERIFICATION] Verifying pet exists in the system...");
-            int maxVerificationAttempts = 5;
-            int verificationAttempt = 0;
-            boolean verificationSuccessful = false;
-            Exception lastVerificationError = null;
-            
-            while (verificationAttempt < maxVerificationAttempts && !verificationSuccessful) {
-                try {
-                    verificationAttempt++;
-                    System.out.println(String.format("Verification attempt %d/%d...", 
-                        verificationAttempt, maxVerificationAttempts));
-                        
-                    // Get the pet with full details
-                    Pet verifiedPet = petApi.getPetById(createdPet.getId());
-                    
-                    if (verifiedPet != null && verifiedPet.getId() != null) {
-                        System.out.println("✓ Pet verification successful!");
-                        System.out.println("Retrieved pet details:");
-                        System.out.println("  ID: " + verifiedPet.getId());
-                        System.out.println("  Name: " + verifiedPet.getName());
-                        System.out.println("  Status: " + verifiedPet.getStatus());
-                        System.out.println("  Photo URLs: " + 
-                            (verifiedPet.getPhotoUrls() != null ? 
-                                String.join(", ", verifiedPet.getPhotoUrls()) : "[none]"));
-                        verificationSuccessful = true;
-                        break;
-                    }
-                } catch (Exception e) {
-                    lastVerificationError = e;
-                    System.err.println(String.format("Verification attempt %d failed: %s", 
-                        verificationAttempt, e.getMessage()));
-                    
-                    if (verificationAttempt < maxVerificationAttempts) {
-                        int delaySeconds = 2 * verificationAttempt; // Exponential backoff
-                        System.out.println(String.format("Retrying in %d seconds...", delaySeconds));
-                        Thread.sleep(delaySeconds * 1000);
-                    }
-                }
-            }
-            
-            if (!verificationSuccessful) {
-                String errorMsg = String.format("Failed to verify pet existence after %d attempts. ", maxVerificationAttempts);
-                if (lastVerificationError != null) {
-                    errorMsg += "Last error: " + lastVerificationError.getMessage();
-                }
-                throw new RuntimeException(errorMsg);
-            }
-            
-            // Log verification details
-            Pet verifiedPet = petApi.getPetById(createdPet.getId());
-            if (verifiedPet != null) {
-                System.out.println("\n[VERIFICATION SUCCESS] Pet details from API:");
-                System.out.println("  ID: " + verifiedPet.getId());
-                System.out.println("  Name: " + verifiedPet.getName());
-                System.out.println("  Status: " + verifiedPet.getStatus());
-                System.out.println("  Photo URLs: " + (verifiedPet.getPhotoUrls() != null ? 
-                    String.join(", ", verifiedPet.getPhotoUrls()) : "[none]"));
-            } else {
-                System.out.println("\n[WARNING] Could not retrieve pet details after successful verification");
-            }
-            
-            lastException = null;
-            System.out.println("\n===== PET ADDED AND VERIFIED SUCCESSFULLY =====\n");
-            
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            lastException = e;
-            System.err.println("\nERROR: Thread was interrupted while adding pet: " + e.getMessage());
-            throw new RuntimeException("Failed to add pet due to interruption", e);
-        } catch (Exception e) {
-            lastException = e;
-            System.err.println("\nERROR: Failed to add pet to store: " + e.getMessage());
-            if (e.getCause() != null) {
-                System.err.println("Caused by: " + e.getCause().getMessage());
-            }
-            throw new RuntimeException("Failed to add pet to store: " + e.getMessage(), e);
-        }   
+            throw new RuntimeException("Failed to parse created pet from response: " + responseBody);
+        }
+        
+        System.out.println("\n[PET CREATED] ID: " + createdPet.getId());
+        
+        // Verify the pet exists in the system with retry logic
+        verifyPetInStore(createdPet.getId());
+        
+        // Log verification details
+        Pet verifiedPet = petApi.getPetById(createdPet.getId());
+        if (verifiedPet != null) {
+            System.out.println("\n[VERIFICATION SUCCESS] Pet details from API:");
+            System.out.println("  ID: " + verifiedPet.getId());
+            System.out.println("  Name: " + verifiedPet.getName());
+            System.out.println("  Status: " + verifiedPet.getStatus());
+            System.out.println("  Photo URLs: " + (verifiedPet.getPhotoUrls() != null ? 
+                String.join(", ", verifiedPet.getPhotoUrls()) : "[none]"));
+        } else {
+            System.out.println("\n[WARNING] Could not retrieve pet details after successful verification");
+        }
+        
+        lastException = null;
+        System.out.println("\n===== PET ADDED AND VERIFIED SUCCESSFULLY =====\n");
     }
 
 
