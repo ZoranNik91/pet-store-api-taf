@@ -54,7 +54,9 @@ pet-store/
 │       ├── java/zoran/
 │       │   ├── steps/            # Step definitions
 │       │   └── runners/          # Test runners
-│       └── resources/features/   # Feature files
+│       └── resources/
+│           ├──features/          # Feature files
+│           └── test-data/images/ # image files
 └── pom.xml
 ```
 
@@ -70,9 +72,9 @@ The framework includes API clients for different endpoints:
 ### Step Definitions
 
 Step definitions are organized by functionality:
-- `PetManagementAPI` - Pet-related test steps
-- `StoreManagementAPI` - Store and order test steps
-- `UserManagementAPI` - User management test steps
+- `PetAPI` - Pet-related test steps
+- `StoreAPI` - Store and order test steps
+- `UserAPI` - User management test steps
 
 ### Test Data Generation
 

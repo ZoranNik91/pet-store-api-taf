@@ -11,22 +11,24 @@ Feature: Pet API
   @smoke @addPet
   Scenario: Add a new basic pet to the store
     Given I have a pet with the following details:
-      | name   | status    |
-      | doggie | available |
+      | name   | status    | photoUrls                                                                 |
+      | doggie | available | https://cdn.pixabay.com/photo/2023/08/18/15/02/dog-8198719_1280.jpg |
     When I add the pet to the store
     Then the pet should be added successfully
     And the response should contain the pet details
+    And the pet should have the photo URL "https://cdn.pixabay.com/photo/2023/08/18/15/02/dog-8198719_1280.jpg"
 
   @regression @addPet
   Scenario: Add a new pet with all details
     Given I have a pet with the following details:
-      | name   | status    | category | tags         |
-      | Buddy  | available | Dog      | friendly,big |
+      | name   | status    | category | tags         | photoUrls                                                                 |
+      | Buddy  | available | Dog      | friendly,big | https://www.dogsforgood.org/wp-content/uploads/2020/06/Dogs-For-Good-October-22-2019-308.jpg |
     When I add the pet to the store
     Then the pet should be added successfully
     And the response should contain the pet details
     And the pet should have the category "Dog"
     And the pet should have the tag "friendly"
+    And the pet should have the photo URL "https://www.dogsforgood.org/wp-content/uploads/2020/06/Dogs-For-Good-October-22-2019-308.jpg"
 
   # ==================== PET RETRIEVAL ====================
   @smoke @getPet
