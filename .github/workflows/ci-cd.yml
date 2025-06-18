@@ -1,0 +1,201 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, dev ]
+    paths-ignore:
+      - 'README.md'
+      - 'docs/**'
+  pull_request:
+    branches: [ main, dev ]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+        - staging
+        - production
+
+# Environment protection rules
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+  statuses: write
+
+# Environment variables available to all jobs and steps
+env:
+  MAVEN_OPTS: -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.count=3
+  MAVEN_CLI_OPTS: --batch-mode --errors --fail-fast --show-version --no-transfer-progress
+
+jobs:
+  build:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v3
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: 'maven'
+
+    - name: Cache Maven packages
+      uses: actions/cache@v3
+      with:
+        path: ~/.m2/repository
+        key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+        restore-keys: |
+          ${{ runner.os }}-maven-
+
+    
+    - name: Build with Maven
+      run: mvn $MAVEN_CLI_OPTS clean verify -DskipTests
+
+    - name: Run Unit Tests
+      run: mvn $MAVEN_CLI_OPTS test
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Run Integration Tests
+      run: mvn $MAVEN_CLI_OPTS test -Dcucumber.filter.tags="@integration"
+      if: always()
+
+    - name: Upload Test Results
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-results
+        path: |
+          **/target/surefire-reports/**/*
+          **/target/failsafe-reports/**/*
+          **/target/cucumber-reports/**/*
+
+  quality-gate:
+    name: Quality Gate
+    needs: build
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v3
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: Run Code Quality Checks
+      run: |
+        mvn $MAVEN_CLI_OPTS checkstyle:check
+        mvn $MAVEN_CLI_OPTS spotbugs:check
+
+  report:
+    name: Generate Reports
+    needs: [build, quality-gate]
+    if: always()
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Download Test Results
+      uses: actions/download-artifact@v3
+      with:
+        name: test-results
+        path: test-results/
+
+
+    - name: Generate Allure Report
+      uses: simple-elf/allure-report-action@v2
+      if: always()
+      with:
+        allure_results: test-results
+        gh_pages: false
+        enable_chart: true
+        report_name: 'Test Report'
+        report_path: ./allure-report
+
+    - name: Upload Allure Report
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: allure-report
+        path: allure-report
+        retention-days: 5
+
+  notify:
+    name: Notify Status
+    needs: report
+    if: always()
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Get the status of previous jobs
+      id: status
+      run: |
+        if [[ "${{ needs.build.result }}" == "success" && "${{ needs.quality-gate.result }}" == "success" ]]; then
+          echo "status=success" >> $GITHUB_OUTPUT
+        else
+          echo "status=failure" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Send Slack Notification
+      if: github.event_name != 'workflow_dispatch'
+      uses: rtCamp/action-slack-notify@v2
+      env:
+        SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+        SLACK_COLOR: ${{ steps.status.outputs.status == 'success' && '#36a64f' || '#ff0000' }}
+        SLACK_TITLE: 'CI/CD Pipeline ${{ steps.status.outputs.status == 'success' && '✅ Succeeded' || '❌ Failed' }}'
+        SLACK_MESSAGE: |
+          *Repository*: ${{ github.repository }}
+          *Branch*: ${{ github.ref_name }}
+          *Workflow*: ${{ github.workflow }}
+          *Status*: ${{ steps.status.outputs.status == 'success' && 'Success 🎉' || 'Failure ❌' }}
+          *Commit*: ${{ github.sha }}
+          *Run by*: ${{ github.actor }}
+          *View logs*: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+  deploy:
+    name: Deploy
+    needs: [build, quality-gate]
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: 
+      name: ${{ github.event.inputs.environment || 'staging' }}
+      url: ${{ steps.deploy.outputs.url || 'https://example.com' }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v3
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: Build application
+      run: mvn $MAVEN_CLI_OPTS clean package -DskipTests
+
+    - name: Deploy to ${{ github.event.inputs.environment || 'staging' }}
+      id: deploy
+      run: |
+        # Add your deployment commands here
+        echo "Deploying to ${{ github.event.inputs.environment || 'staging' }} environment"
+        # Example: ./deploy.sh ${{ github.event.inputs.environment || 'staging' }}
+        echo "url=https://${{ github.event.inputs.environment || 'staging' }}.example.com" >> $GITHUB_OUTPUT
+
+    - name: Verify deployment
+      run: |
+        # Add verification steps here
+        echo "Verifying deployment..."
+        # Example: curl -sSf https://${{ github.event.inputs.environment || 'staging' }}.example.com/health
