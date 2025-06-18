@@ -1,0 +1,15 @@
+/Users/admin/IdeaProjects/pet-store-api-taf/pet-store/src/main/java/zoran/utils/PetGenerator.java
+/Users/admin/IdeaProjects/pet-store-api-taf/pet-store/src/main/java/zoran/models/ApiResponse.java
+/Users/admin/IdeaProjects/pet-store-api-taf/pet-store/src/main/java/zoran/models/Category.java
+/Users/admin/IdeaProjects/pet-store-api-taf/pet-store/src/main/java/zoran/config/ApiConfig.java
+/Users/admin/IdeaProjects/pet-store-api-taf/pet-store/src/main/java/zoran/utils/OrderGenerator.java
+/Users/admin/IdeaProjects/pet-store-api-taf/pet-store/src/main/java/zoran/config/Config.java
+/Users/admin/IdeaProjects/pet-store-api-taf/pet-store/src/main/java/zoran/api/StoreApiClient.java
+/Users/admin/IdeaProjects/pet-store-api-taf/pet-store/src/main/java/zoran/models/Pet.java
+/Users/admin/IdeaProjects/pet-store-api-taf/pet-store/src/main/java/zoran/api/UserApiClient.java
+/Users/admin/IdeaProjects/pet-store-api-taf/pet-store/src/main/java/zoran/models/Tag.java
+/Users/admin/IdeaProjects/pet-store-api-taf/pet-store/src/main/java/zoran/models/User.java
+/Users/admin/IdeaProjects/pet-store-api-taf/pet-store/src/main/java/zoran/models/Order.java
+/Users/admin/IdeaProjects/pet-store-api-taf/pet-store/src/main/java/zoran/api/BaseApiClient.java
+/Users/admin/IdeaProjects/pet-store-api-taf/pet-store/src/main/java/zoran/utils/UserGenerator.java
+/Users/admin/IdeaProjects/pet-store-api-taf/pet-store/src/main/java/zoran/api/PetApiClient.java

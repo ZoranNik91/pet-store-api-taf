@@ -6,9 +6,11 @@ A comprehensive test automation framework for the Pet Store API, built with Java
 1. [Project Setup](#project-setup)
 2. [Dependencies](#dependencies)
 3. [Project Structure](#project-structure)
-4. [Implementation Steps](#implementation-steps)
+4. [Implementation Details](#implementation-details)
 5. [Running Tests](#running-tests)
-6. [Troubleshooting](#troubleshooting)
+6. [Test Reports](#test-reports)
+7. [Troubleshooting](#troubleshooting)
+8. [Best Practices](#best-practices)
 
 ## Project Setup
 
@@ -54,7 +56,9 @@ pet-store/
 │       ├── java/zoran/
 │       │   ├── steps/            # Step definitions
 │       │   └── runners/          # Test runners
-│       └── resources/features/   # Feature files
+│       └── resources/
+│           ├──features/          # Feature files
+│           └── test-data/images/ # Image files for tests
 └── pom.xml
 ```
 
@@ -70,9 +74,9 @@ The framework includes API clients for different endpoints:
 ### Step Definitions
 
 Step definitions are organized by functionality:
-- `PetManagementAPI` - Pet-related test steps
-- `StoreManagementAPI` - Store and order test steps
-- `UserManagementAPI` - User management test steps
+- `PetAPI` - Pet-related test steps
+- `StoreAPI` - Store and order test steps
+- `UserAPI` - User management test steps
 
 ### Test Data Generation
 
@@ -110,20 +114,52 @@ mvn allure:report
 mvn allure:serve
 ```
 
-## Test Execution Reports
+## Test Reports
 
-Test execution reports are generated in the following directories:
-- **Allure Results**: `target/allure-results`
-- **Allure Report**: `target/site/allure-maven-plugin` (after running `allure:report`)
+After running the tests, you can find the generated reports in the following locations:
+
+### Local Execution Reports
+
+1. **Cucumber Reports**:
+   - JSON format: `target/cucumber-reports/cucumber.json`
+   - HTML format: `target/cucumber-html-reports/overview-features.html`
+   - JUnit XML: `target/surefire-reports/`
+
+2. **Allure Reports** (if generated):
+   - Raw results: `target/allure-results/`
+   - Generated HTML: `target/site/allure-maven-plugin/` (after running `mvn site`)
 
 The Allure report provides a detailed, interactive view of test results, including:
-- Test execution history
-- Step-by-step test execution
-- Screenshots and attachments
+- Test execution history and trends
+- Step-by-step test execution details
 - Environment information
 - Test categorization and grouping
+- Screenshots and attachments (if configured)
 
-To view the report, run `mvn allure:serve` and open the provided URL in your browser.
+### Viewing Reports
+
+#### Cucumber HTML Report
+```bash
+# Open the HTML report in your default browser
+open target/cucumber-html-reports/overview-features.html
+```
+
+#### Allure Report
+```bash
+# Generate the report
+mvn allure:report
+
+# Serve the report locally
+mvn allure:serve
+```
+
+### CI/CD Reports (GitHub Actions)
+
+When running in GitHub Actions:
+1. Go to the "Actions" tab in your repository
+2. Click on the workflow run
+3. Look for the "Artifacts" section at the bottom
+4. Download the `test-results` or `allure-report` artifacts
 
 ## Troubleshooting
 

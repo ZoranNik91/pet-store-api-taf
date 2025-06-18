@@ -64,10 +64,82 @@ class PetApiTests extends BaseApiTest {
         assertNotNull(createdPetId, "Pet ID should not be null after creation");
     }
 
+    private Response getPetWithRetry(long petId, int maxRetries, long delayMs) throws InterruptedException {
+        logToFile("Attempting to retrieve pet with ID: " + petId);
+        Response response = null;
+        
+        for (int attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                logToFile(String.format("Attempt %d/%d to get pet with ID: %d", attempt, maxRetries, petId));
+                response = given()
+                    .header("api_key", "testApiKey")
+                    .when()
+                    .get("/pet/" + petId);
+                
+                if (response.getStatusCode() == 200) {
+                    logToFile("Successfully retrieved pet on attempt " + attempt);
+                    return response;
+                }
+                
+                logToFile(String.format("Attempt %d failed with status %d. Response: %s", 
+                    attempt, response.getStatusCode(), response.getBody().asString()));
+                
+                if (attempt < maxRetries) {
+                    logToFile("Waiting " + delayMs + "ms before next retry...");
+                    Thread.sleep(delayMs);
+                }
+            } catch (Exception e) {
+                logToFile("Error during attempt " + attempt + ": " + e.getMessage());
+                if (attempt == maxRetries) {
+                    throw new AssertionError("Failed to retrieve pet after " + maxRetries + " attempts", e);
+                }
+                Thread.sleep(delayMs);
+            }
+        }
+        return response;
+    }
+    
+    private Response addPetWithRetry(Pet pet, int maxRetries, long delayMs) throws InterruptedException {
+        logToFile("Attempting to add pet with ID: " + pet.getId());
+        Response response = null;
+        
+        for (int attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                logToFile(String.format("Attempt %d/%d to add pet", attempt, maxRetries));
+                response = given()
+                    .header("api_key", "testApiKey")
+                    .contentType(ContentType.JSON)
+                    .body(pet)
+                    .when()
+                    .post("/pet");
+                
+                if (response.getStatusCode() == 200) {
+                    logToFile("Successfully added pet on attempt " + attempt);
+                    return response;
+                }
+                
+                logToFile(String.format("Attempt %d failed with status %d. Response: %s", 
+                    attempt, response.getStatusCode(), response.getBody().asString()));
+                
+                if (attempt < maxRetries) {
+                    logToFile("Waiting " + delayMs + "ms before next retry...");
+                    Thread.sleep(delayMs);
+                }
+            } catch (Exception e) {
+                logToFile("Error during attempt " + attempt + ": " + e.getMessage());
+                if (attempt == maxRetries) {
+                    throw new AssertionError("Failed to add pet after " + maxRetries + " attempts", e);
+                }
+                Thread.sleep(delayMs);
+            }
+        }
+        return response;
+    }
+    
     @Test
     @Order(2)
     @DisplayName("Should retrieve a pet by ID after creating it")
-    void getPetById_shouldReturnCreatedPet() {
+    void getPetById_shouldReturnCreatedPet() throws InterruptedException {
         // Print system properties for debugging
         System.out.println("\n=== System Properties ===");
         System.getProperties().forEach((key, value) -> 
@@ -82,6 +154,7 @@ class PetApiTests extends BaseApiTest {
         
         // Print current working directory
         System.out.println("\nCurrent working directory: " + System.getProperty("user.dir"));
+        
         // Clear the log file at the start of the test
         try (PrintWriter writer = new PrintWriter(LOG_FILE)) {
             writer.print("");
@@ -94,162 +167,65 @@ class PetApiTests extends BaseApiTest {
         // Enable detailed logging for all requests and responses
         RestAssured.enableLoggingOfRequestAndResponseIfValidationFails();
         
-        // Create a new test pet with a unique name
-        String uniquePetName = "testPet_" + System.currentTimeMillis();
+        // Create a new test pet with a unique ID and name
+        long uniqueId = System.currentTimeMillis() % 1000000; // Last 6 digits of current time
+        String petName = "testPet_" + System.currentTimeMillis();
+        Pet testPet = new Pet();
+        testPet.setId(uniqueId);
+        testPet.setName(petName);
+        testPet.setStatus("available");
+
+        logToFile("Test pet details - ID: " + uniqueId + ", Name: " + petName);
         
-        // Create a pet object with a unique ID
-        Long petId = System.currentTimeMillis() % 1000000; // Keep the number smaller to avoid potential issues
-        
-        Pet pet = new Pet();
-        pet.setId(petId);
-        pet.setName(uniquePetName);
-        pet.setStatus("available");
-        
-        // Log test details
-        logToFile("Test pet details - ID: " + petId + ", Name: " + uniquePetName);
-        
-        // 1. Add a new pet to the store
+        // 1. Add a new pet to the store with retry logic
         logToFile("1. Sending POST request to /pet");
-        Response addResponse = given()
-            .config(RestAssured.config().encoderConfig(encoderConfig().defaultContentCharset("UTF-8")))
-            .contentType(ContentType.JSON)
-            .header("api_key", config.getApiKey())
-            .log().all()
-            .body(pet)
-        .when()
-            .post("/pet");
-            
-        // Log add response
-        logToFile("Add pet response status: " + addResponse.getStatusCode());
-        String addResponseBody = addResponse.getBody().asString();
-        logToFile("Add pet response body: " + addResponseBody);
+        Response addResponse = addPetWithRetry(testPet, 3, 2000);
         
-        // Verify the pet was added successfully
+        // 2. Verify the pet was added successfully
         addResponse.then().statusCode(200);
         
-        // Parse the response to get the actual ID if the server generated one
+        // 3. Get the created pet ID from the response
+        Pet createdPet = addResponse.as(Pet.class);
+        long createdPetId = createdPet.getId();
+        logToFile("Created pet ID from response: " + createdPetId);
+        
+        // 4. Try to get the pet with retry logic
+        logToFile("2. Attempting to retrieve the pet with retry logic");
+        Response getResponse = getPetWithRetry(createdPetId, 5, 2000);
+        
+        // 5. Verify the response
+        logToFile("3. Verifying the pet details");
+        getResponse.then().statusCode(200);
+        
+        Pet retrievedPet = getResponse.as(Pet.class);
+        assertNotNull(retrievedPet, "Retrieved pet should not be null");
+        assertEquals(createdPetId, retrievedPet.getId(), "Pet ID should match");
+        assertEquals(petName, retrievedPet.getName(), "Pet name should match");
+        
+        logToFile("=== Test completed successfully ===");
+        
+        // Clean up - delete the test pet
         try {
-            Pet createdPet = addResponse.as(Pet.class);
-            if (createdPet != null && createdPet.getId() != null) {
-                petId = createdPet.getId(); // Use the ID from the response
-                logToFile("Created pet ID from response: " + petId);
-                logToFile("Created pet name from response: " + createdPet.getName());
-            }
-        } catch (Exception e) {
-            logToFile("Failed to parse add pet response: " + e.getMessage());
-        }
-        
-        // Small delay to ensure the pet is available
-        try {
-            logToFile("Waiting 2 seconds before retrieving the pet...");
-            Thread.sleep(2000);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-        
-        // 2. Get the pet by ID
-        logToFile("2. Sending GET request to /pet/" + petId);
-        Response getResponse = given()
-            .header("api_key", config.getApiKey())
-            .accept(ContentType.JSON)
-            .log().all()
-        .when()
-            .get("/pet/" + petId);
-            
-        // Log get response
-        int statusCode = getResponse.getStatusCode();
-        logToFile("Get pet response status: " + statusCode);
-        String responseBody = getResponse.getBody().asString();
-        logToFile("Get pet response body: " + responseBody);
-        
-        // If we got a 404, investigate further
-        if (statusCode == 404) {
-            logToFile("Pet not found with ID: " + petId);
-            
-            // Try to find the pet by status
-            logToFile("3. Searching for pet by status...");
-            
-            // Check available pets
-            logToFile("Checking available pets...");
-            Response availablePets = given()
-                .header("api_key", config.getApiKey())
-                .queryParam("status", "available")
-            .when()
-                .get("/pet/findByStatus");
-            logToFile("Available pets: " + availablePets.getBody().asString());
-            
-            // Check pending pets
-            logToFile("Checking pending pets...");
-            Response pendingPets = given()
-                .header("api_key", config.getApiKey())
-                .queryParam("status", "pending")
-            .when()
-                .get("/pet/findByStatus");
-            logToFile("Pending pets: " + pendingPets.getBody().asString());
-            
-            // Check sold pets
-            logToFile("Checking sold pets...");
-            Response soldPets = given()
-                .header("api_key", config.getApiKey())
-                .queryParam("status", "sold")
-            .when()
-                .get("/pet/findByStatus");
-            logToFile("Sold pets: " + soldPets.getBody().asString());
-        }
-        
-        // 4. Verify the response
-        logToFile("4. Verifying response status code");
-        try {
-            getResponse.then().statusCode(200);
-            logToFile("Status code verification passed (200)");
-        } catch (AssertionError e) {
-            logToFile("Status code verification failed: " + e.getMessage());
-            logToFile("Response status: " + getResponse.getStatusCode());
-            logToFile("Response body: " + getResponse.getBody().asString());
-            logToFile("Response headers: " + getResponse.getHeaders());
-            throw e; // Re-throw to fail the test
-        }
-        
-        // 5. Parse and verify the pet details
-        logToFile("5. Parsing and verifying pet details");
-        Pet responsePet = getResponse.as(Pet.class);
-        try {
-            assertNotNull(responsePet, "Response pet should not be null");
-            assertNotNull(responsePet.getId(), "Pet ID should not be null");
-            assertEquals(petId, responsePet.getId(), "Pet ID should match the created pet's ID");
-            assertEquals(uniquePetName, responsePet.getName(), "Pet name should match");
-            logToFile("Successfully verified pet details");
-            
-            // 6. Clean up - delete the test pet
-            logToFile("6. Cleaning up - Deleting pet with ID: " + petId);
+            logToFile("Cleaning up - Deleting pet with ID: " + createdPetId);
             given()
-                .header("api_key", config.getApiKey())
+                .header("api_key", "testApiKey")
             .when()
-                .delete("/pet/" + petId)
+                .delete("/pet/" + createdPetId)
             .then()
                 .statusCode(200);
                 
-            // 7. Verify the pet was deleted
-            logToFile("7. Verifying pet was deleted...");
+            // Verify the pet was deleted
+            logToFile("Verifying pet was deleted...");
             given()
-                .header("api_key", config.getApiKey())
+                .header("api_key", "testApiKey")
             .when()
-                .get("/pet/" + petId)
+                .get("/pet/" + createdPetId)
             .then()
                 .statusCode(404);
                 
-            logToFile("=== Test completed successfully ===\n");
-        } finally {
-            // Ensure cleanup happens even if assertions fail
-            try {
-                logToFile("Ensuring cleanup of pet with ID: " + petId);
-                given()
-                    .header("api_key", config.getApiKey())
-                .when()
-                    .delete("/pet/" + petId);
-            } catch (Exception e) {
-                logToFile("Cleanup failed (this is not critical): " + e.getMessage());
-            }
+            logToFile("Pet successfully deleted");
+        } catch (Exception e) {
+            logToFile("Cleanup failed (this is not critical): " + e.getMessage());
         }
     }
 

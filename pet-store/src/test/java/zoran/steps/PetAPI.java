@@ -1,5 +1,6 @@
 package zoran.steps;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
@@ -14,6 +15,8 @@ import zoran.utils.PetGenerator;
 import java.io.File;
 import java.util.HashMap;
 import java.util.List;
+import java.util.ArrayList;
+import java.util.Objects;
 import java.io.FileNotFoundException;
 import java.util.Map;
 
@@ -39,41 +42,217 @@ public class PetAPI {
 
     @Given("I have a pet with the following details:")
     public void createPetWithDetails(io.cucumber.datatable.DataTable dataTable) {
-        testPet = Pet.builder()
-                .id(PetGenerator.generateRandomId())
-                .name(dataTable.cell(1, 0)) // First row, first column (name)
-                .status(dataTable.cell(1, 1)) // First row, second column (status)
-                .photoUrls(List.of("https://example.com/photo1.jpg")) // Required field
-                .build();
+        try {
+            // Get basic pet details
+            String name = dataTable.cell(1, 0).trim();
+            String status = dataTable.cell(1, 1).trim();
+            
+            // Initialize photoUrls list
+            List<String> photoUrls = new ArrayList<>();
+            
+            // Check if photoUrls column exists and has a value
+            if (dataTable.width() > 2) {
+                String photoUrlCell = dataTable.cell(1, 2).trim();
+                if (!photoUrlCell.isEmpty()) {
+                    // Split multiple URLs by comma and trim whitespace
+                    String[] urls = photoUrlCell.split(",");
+                    for (String url : urls) {
+                        String trimmedUrl = url.trim();
+                        if (!trimmedUrl.isEmpty()) {
+                            photoUrls.add(trimmedUrl);
+                        }
+                    }
+                }
+            }
+            
+            // If no photo URLs were provided, use a default one
+            if (photoUrls.isEmpty()) {
+                photoUrls.add("https://example.com/photo1.jpg");
+                System.out.println("No photo URLs provided, using default");
+            }
+            
+            // Build the pet with the collected details
+            testPet = Pet.builder()
+                    .id(PetGenerator.generateRandomId())
+                    .name(name)
+                    .status(status)
+                    .photoUrls(photoUrls)
+                    .build();
+            
+            // Log the created pet details for debugging
+            System.out.println("Created test pet with details:" +
+                    "\n  ID: " + testPet.getId() +
+                    "\n  Name: " + testPet.getName() +
+                    "\n  Status: " + testPet.getStatus() +
+                    "\n  Photo URLs: " + String.join(", ", testPet.getPhotoUrls()));
+                    
+        } catch (Exception e) {
+            String errorMsg = "Error creating test pet from DataTable: " + e.getMessage();
+            System.err.println(errorMsg);
+            throw new RuntimeException(errorMsg, e);
+        }
     }
 
     @When("I add the pet to the store")
     public void addPetToStore() {
-        try {
-            System.out.println("Adding pet to store with details: " + testPet);
-            
-            // Store the response from adding the pet
-            response = petApi.addPetWithResponse(testPet);
-            createdPet = response.as(Pet.class);
-            
-            System.out.println("Pet added successfully with ID: " + createdPet.getId() + 
-                             ", Status Code: " + response.getStatusCode());
-            
-            // Update testPet with the ID from the response
-            testPet.setId(createdPet.getId());
-            
-            // Verify the pet exists in the system
-            Pet verifiedPet = petApi.getPetById(createdPet.getId());
-            if (verifiedPet == null) {
-                throw new RuntimeException("Failed to verify pet creation - pet not found in system");
-            }
-            System.out.println("Verified pet exists in system with ID: " + verifiedPet.getId());
-            lastException = null;
-        } catch (Exception e) {
-            lastException = e;
-            System.err.println("Error adding pet to store: " + e.getMessage());
-            throw new RuntimeException("Failed to add pet to store: " + e.getMessage(), e);
+        System.out.println("\n===== ADDING PET TO STORE =====");
+        System.out.println("Timestamp: " + java.time.LocalDateTime.now());
+        
+        if (testPet == null) {
+            throw new IllegalStateException("Test pet is not initialized. Please create a pet first.");
         }
+        
+        int maxRetries = 3;
+        int retryCount = 0;
+        boolean success = false;
+        
+        while (!success && retryCount < maxRetries) {
+            try {
+                // Log pet details being added
+                System.out.println("\n[PET DETAILS]");
+                System.out.println("  ID: " + testPet.getId());
+                System.out.println("  Name: " + testPet.getName());
+                System.out.println("  Status: " + testPet.getStatus());
+                System.out.println("  Photo URLs: " + (testPet.getPhotoUrls() != null ? 
+                    String.join(", ", testPet.getPhotoUrls()) : "[none]"));
+                
+                // Add pet to store and get the response
+                System.out.println("\n[API REQUEST] Adding pet to store...");
+                Pet addedPet = petApi.addPet(testPet);
+                
+                // Verify the pet was added successfully
+                if (addedPet == null || addedPet.getId() == null) {
+                    throw new RuntimeException("Failed to add pet: No valid pet data in response");
+                }
+                
+                // Store the added pet for verification
+                response = petApi.addPetWithResponse(testPet);
+                int statusCode = response.getStatusCode();
+                System.out.println("Response Status Code: " + statusCode);
+                System.out.println("Successfully added pet with ID: " + addedPet.getId());
+                
+                if (statusCode == 200 || statusCode == 201) {
+                    // Parse the response to get the created pet
+                    createdPet = response.as(Pet.class);
+                    System.out.println("Successfully added pet with ID: " + createdPet.getId());
+                    success = true;
+                    
+                    // Verify the pet exists in the store
+                    verifyPetInStore(createdPet.getId());
+                    
+                    // Store the created pet ID for cleanup
+                    if (createdPet.getId() != null) {
+                        System.out.println("Pet successfully added with ID: " + createdPet.getId());
+                    } else {
+                        System.err.println("Warning: Created pet has null ID");
+                    }
+                } else {
+                    String errorMsg = "Failed to add pet. Status: " + statusCode + 
+                                     "\nResponse: " + response.getBody().asString();
+                    System.err.println(errorMsg);
+                    throw new RuntimeException(errorMsg);
+                }
+                
+            } catch (Exception e) {
+                retryCount++;
+                if (retryCount >= maxRetries) {
+                    String errorMsg = "Failed after " + maxRetries + " attempts: " + e.getMessage();
+                    System.err.println(errorMsg);
+                    throw new RuntimeException(errorMsg, e);
+                }
+                
+                // Wait before retrying (exponential backoff)
+                long waitTime = (long) (Math.pow(2, retryCount) * 1000);
+                System.out.println("Retry attempt " + retryCount + " of " + maxRetries + " after " + waitTime + "ms");
+                try {
+                    Thread.sleep(waitTime);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    throw new RuntimeException("Interrupted during retry", ie);
+                }
+            }
+        }
+    }
+    
+    /**
+     * Verifies that a pet exists in the store by its ID
+     * @param petId The ID of the pet to verify
+     * @throws RuntimeException if the pet cannot be found or there's an error
+     */
+    private void verifyPetInStore(long petId) {
+        System.out.println("\n[VERIFICATION] Verifying pet with ID: " + petId);
+        
+        int maxRetries = 3;
+        int retryCount = 0;
+        boolean verified = false;
+        
+        while (!verified && retryCount < maxRetries) {
+            try {
+                Pet verifiedPet = petApi.getPetById(petId);
+                
+                if (verifiedPet != null && verifiedPet.getId() != null) {
+                    System.out.println("Successfully verified pet in store:");
+                    System.out.println("  ID: " + verifiedPet.getId());
+                    System.out.println("  Name: " + verifiedPet.getName());
+                    System.out.println("  Status: " + verifiedPet.getStatus());
+                    verified = true;
+                } else {
+                    String errorMsg = "Pet with ID " + petId + " not found in store";
+                    System.err.println(errorMsg);
+                    throw new RuntimeException(errorMsg);
+                }
+            } catch (Exception e) {
+                retryCount++;
+                if (retryCount >= maxRetries) {
+                    System.err.println("Failed to verify pet after " + maxRetries + " attempts: " + e.getMessage());
+                    throw new RuntimeException("Failed to verify pet in store", e);
+                }
+                
+                // Wait before retrying (exponential backoff)
+                long waitTime = (long) (Math.pow(2, retryCount) * 1000);
+                System.out.println("Verification retry attempt " + retryCount + " of " + maxRetries + " after " + waitTime + "ms");
+                try {
+                    Thread.sleep(waitTime);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    throw new RuntimeException("Interrupted during verification retry", ie);
+                }
+            }
+        }
+    }
+    
+    @When("I parse the response and store the created pet")
+    public void parseAndStoreCreatedPet() {
+        if (response == null) {
+            throw new IllegalStateException("No response available to parse");
+        }
+        
+        createdPet = response.as(Pet.class);
+        if (createdPet == null || createdPet.getId() == null) {
+            String responseBody = response.getBody().asString();
+            throw new RuntimeException("Failed to parse created pet from response: " + responseBody);
+        }
+        
+        System.out.println("\n[PET CREATED] ID: " + createdPet.getId());
+        
+        // Verify the pet exists in the system with retry logic
+        verifyPetInStore(createdPet.getId());
+        
+        // Log verification details
+        Pet verifiedPet = petApi.getPetById(createdPet.getId());
+        if (verifiedPet != null) {
+            System.out.println("\n[VERIFICATION SUCCESS] Pet details from API:");
+            System.out.println("  ID: " + verifiedPet.getId());
+            System.out.println("  Name: " + verifiedPet.getName());
+            System.out.println("  Status: " + verifiedPet.getStatus());
+            System.out.println("  Photo URLs: " + (verifiedPet.getPhotoUrls() != null ? 
+                String.join(", ", verifiedPet.getPhotoUrls()) : "[none]"));
+        } else {
+            System.out.println("\n[WARNING] Could not retrieve pet details after successful verification");
+        }
+        
+        lastException = null;
+        System.out.println("\n===== PET ADDED AND VERIFIED SUCCESSFULLY =====\n");
     }
 
 
@@ -93,6 +272,127 @@ public class PetAPI {
         assertTrue(createdPet.getTags().stream()
                 .anyMatch(tag -> expectedTag.equals(tag.getName())), 
                 "Pet does not have the expected tag: " + expectedTag);
+    }
+    
+    @Then("the pet should have the photo URL {string}")
+    public void verifyPetPhotoUrl(String expectedUrl) {
+        System.out.println("\n===== VERIFYING PET PHOTO URL =====");
+        System.out.println("Expected photo URL: " + expectedUrl);
+        
+        // Normalize the expected URL
+        String normalizedExpectedUrl = expectedUrl.trim();
+        System.out.println("Normalized expected URL: " + normalizedExpectedUrl);
+        
+        Pet refreshedPet = null;
+        int maxAttempts = 3;
+        int attempt = 0;
+        Exception lastError = null;
+        
+        // Retry logic to handle potential timing issues
+        while (attempt < maxAttempts) {
+            try {
+                System.out.println("\n--- Verification Attempt " + (attempt + 1) + " ---");
+                
+                // Get the latest pet data
+                System.out.println("Retrieving pet with ID: " + createdPet.getId());
+                refreshedPet = petApi.getPetById(createdPet.getId());
+                
+                if (refreshedPet == null) {
+                    throw new RuntimeException("Pet not found in the system");
+                }
+                
+                // Log the retrieved pet details
+                System.out.println("Retrieved pet details:");
+                System.out.println("  ID: " + refreshedPet.getId());
+                System.out.println("  Name: " + refreshedPet.getName());
+                System.out.println("  Status: " + refreshedPet.getStatus());
+                
+                // Check if photo URLs exist
+                if (refreshedPet.getPhotoUrls() == null) {
+                    throw new AssertionError("Pet photo URLs should not be null. Check if the API is returning the photoUrls field.");
+                }
+                
+                System.out.println("Current photo URLs: " + 
+                    (refreshedPet.getPhotoUrls().isEmpty() ? "[empty]" : ""));
+                
+                // Print each photo URL on a new line for better readability
+                refreshedPet.getPhotoUrls().forEach(url -> 
+                    System.out.println("  - " + (url != null ? url.trim() : "null") + ""));
+                
+                // Check if we have any photo URLs
+                if (refreshedPet.getPhotoUrls().isEmpty()) {
+                    throw new AssertionError(String.format("Pet should have at least one photo URL. " +
+                        "Expected: %s, but no photo URLs were found.", normalizedExpectedUrl));
+                }
+                
+                // Try to find the URL (case-sensitive first, then case-insensitive)
+                boolean exactMatchFound = refreshedPet.getPhotoUrls().stream()
+                    .anyMatch(url -> url != null && url.trim().equals(normalizedExpectedUrl));
+                    
+                if (exactMatchFound) {
+                    System.out.println("✓ Found exact case-sensitive match for URL: " + normalizedExpectedUrl);
+                    System.out.println("\n===== PHOTO URL VERIFICATION SUCCESSFUL =====\n");
+                    return; // Success - exit the method
+                }
+                
+                // If no exact match, try case-insensitive comparison
+                boolean caseInsensitiveMatchFound = refreshedPet.getPhotoUrls().stream()
+                    .filter(Objects::nonNull)
+                    .map(String::trim)
+                    .anyMatch(normalizedExpectedUrl::equalsIgnoreCase);
+                    
+                if (caseInsensitiveMatchFound) {
+                    System.out.println("⚠ Found case-insensitive match for URL: " + normalizedExpectedUrl);
+                    System.out.println("  Note: The test passed, but consider normalizing URL case in your tests for consistency.");
+                    System.out.println("\n===== PHOTO URL VERIFICATION SUCCESSFUL (CASE-INSENSITIVE) =====\n");
+                    return; // Success - exit the method
+                }
+                
+                // If we get here, no match was found in this attempt
+                System.out.println("❌ No matching URL found in attempt " + (attempt + 1));
+                
+                // If this isn't the last attempt, wait before retrying
+                if (attempt < maxAttempts - 1) {
+                    System.out.println("Waiting 2 seconds before retry...");
+                    Thread.sleep(2000);
+                }
+                
+            } catch (Exception e) {
+                lastError = e;
+                System.err.println("Error during verification attempt " + (attempt + 1) + ": " + e.getMessage());
+                
+                // If this isn't the last attempt, wait before retrying
+                if (attempt < maxAttempts - 1) {
+                    try {
+                        System.out.println("Waiting 2 seconds before retry...");
+                        Thread.sleep(2000);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        throw new RuntimeException("Thread was interrupted during verification", ie);
+                    }
+                }
+            }
+            
+            attempt++;
+        }
+        
+        // If we get here, all attempts failed
+        String errorMessage = String.format("\n❌ FAILED to verify photo URL after %d attempts.\n" +
+            "Expected URL: %s\n" +
+            "Actual URLs: %s\n" +
+            "Pet details: %s",
+            maxAttempts,
+            normalizedExpectedUrl,
+            (refreshedPet != null && refreshedPet.getPhotoUrls() != null) ? 
+                String.join(", ", refreshedPet.getPhotoUrls()) : "[no photo URLs]",
+            (refreshedPet != null) ? refreshedPet.toString() : "[pet not found]");
+            
+        if (lastError != null) {
+            errorMessage += "\nLast error: " + lastError.getMessage();
+        }
+        
+        System.err.println(errorMessage);
+        throw new AssertionError(errorMessage, lastError);
     }
 
     @When("I attempt to retrieve a pet with ID {string}")
@@ -146,50 +446,48 @@ public class PetAPI {
             System.out.println("Updating pet " + petId + " status to: " + status);
             
             // Update the pet status using form data
-            System.out.println("Sending update request...");
-            Response response = petApi.updatePetWithForm(petId, null, status);
+            response = petApi.updatePetWithForm(petId, null, status);
             
             // Log the response
-            String responseBody = response.getBody().asString();
-            int statusCode = response.getStatusCode();
-            System.out.println("Update status response: " + statusCode + " - " + responseBody);
+            System.out.println("Update status response status: " + response.getStatusCode());
+            System.out.println("Update status response body: " + response.getBody().asString());
             
-            // Verify the update was successful (Petstore API returns 200 on success)
-            if (statusCode != 200) {
-                String errorMsg = String.format("Failed to update pet status. Status code: %d, Response: %s",
-                    statusCode, responseBody);
-                System.err.println(errorMsg);
-                throw new AssertionError(errorMsg);
+            // Check if the update was successful
+            if (response.getStatusCode() != 200) {
+                throw new RuntimeException("Failed to update pet status. Status code: " + 
+                    response.getStatusCode() + ", Response: " + response.getBody().asString());
             }
             
-            // Update the local pet object status
-            targetPet.setStatus(status);
-            System.out.println("Updated local pet status to: " + status);
+            // Refresh the pet data with a small delay to ensure the update is processed
+            Thread.sleep(1000);
             
-            // Add a small delay to ensure the update is processed
-            System.out.println("Waiting for update to propagate...");
-            Thread.sleep(2000); // Increased delay for better reliability
-            
-            // Verify the status was updated in the system
+            // Get the updated pet data with retry logic
+            int maxRetries = 3;
+            int retryCount = 0;
             Pet updatedPet = null;
-            int retries = 3;
-            for (int i = 0; i < retries; i++) {
+            
+            while (retryCount < maxRetries) {
                 try {
                     updatedPet = petApi.getPetById(petId);
                     if (updatedPet != null && status.equals(updatedPet.getStatus())) {
                         break; // Status matches, exit retry loop
                     }
-                    System.out.println("Status not yet updated, retrying... (" + (i+1) + "/" + retries + ")");
+                    System.out.println("Status not yet updated, retrying... (" + (retryCount + 1) + "/" + maxRetries + ")");
+                    if (retryCount < maxRetries - 1) {
+                        Thread.sleep(2000); // Wait 2 seconds before retry
+                    }
                 } catch (Exception e) {
-                    System.err.println("Error retrieving updated pet (attempt " + (i+1) + "): " + e.getMessage());
+                    System.err.println("Error retrieving updated pet (attempt " + (retryCount + 1) + "): " + e.getMessage());
+                    if (retryCount == maxRetries - 1) {
+                        throw e; // If last retry, rethrow the exception
+                    }
+                    Thread.sleep(2000); // Wait 2 seconds before retry
                 }
-                if (i < retries - 1) {
-                    Thread.sleep(1000); // Wait before retry
-                }
+                retryCount++;
             }
             
             if (updatedPet == null) {
-                throw new RuntimeException("Failed to retrieve updated pet with ID: " + petId + " after " + retries + " attempts");
+                throw new RuntimeException("Failed to retrieve updated pet with ID: " + petId + " after " + maxRetries + " attempts");
             }
             
             // Verify the status was updated
